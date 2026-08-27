@@ -7,6 +7,7 @@ import AgendaPage from './pages/AgendaPage'
 import GoalsPage from './pages/GoalsPage'
 import IntegrationPage from './pages/IntegrationPage'
 import DashboardPage from './pages/DashboardPage'
+import WhatsAppPage from './pages/WhatsAppPage'
 import ProtectedRoute from './components/ui/ProtectedRoute'
 
 export default function App() {
@@ -71,6 +72,15 @@ export default function App() {
           element={
             <ProtectedRoute roles={['gestor']}>
               <IntegrationPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/whatsapp"
+          element={
+            <ProtectedRoute roles={['gestor']}>
+              <WhatsAppPage />
             </ProtectedRoute>
           }
         />

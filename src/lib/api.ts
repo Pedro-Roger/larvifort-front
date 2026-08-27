@@ -35,3 +35,31 @@ export const api = {
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
+
+export type WhatsAppStatus = {
+  configured: boolean
+  instance: null | {
+    id: string
+    instanceName: string
+    apiUrl: string
+    phoneNumber: string | null
+    status: string | null
+    createdAt: string
+  }
+  connectionState: string | null
+  error: string | null
+}
+
+export type WhatsAppQr = {
+  base64: string | null
+  code: string | null
+}
+
+export const whatsappApi = {
+  status: () => api.get<WhatsAppStatus>('/api/v1/whatsapp/status'),
+  createInstance: () => api.post<{ configured: true; instance: NonNullable<WhatsAppStatus['instance']> }>('/api/v1/whatsapp/instance', {}),
+  qr: () => api.get<WhatsAppQr>('/api/v1/whatsapp/qr'),
+  testMessage: (number: string, text: string) =>
+    api.post<{ ok: true; sentAt: string }>('/api/v1/whatsapp/test-message', { number, text }),
+  disconnect: () => api.delete<void>('/api/v1/whatsapp/disconnect'),
+}

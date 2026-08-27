@@ -1,4 +1,4 @@
-import { Plus, Users, Bell, Settings, ShoppingCart, CalendarClock, Target, Cable, LayoutDashboard } from 'lucide-react'
+import { Plus, Users, Bell, Settings, ShoppingCart, CalendarClock, Target, Cable, LayoutDashboard, MessageCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { logout } from '@/lib/auth'
@@ -157,6 +157,8 @@ export default function AppSidebar({
           URL via ProtectedRoute roles={['gestor']}. */}
       {user?.role === 'gestor' &&
         iconBtn(false, () => navigate('/integracao'), 'Integração', <Cable size={17} />)}
+      {user?.role === 'gestor' &&
+        iconBtn(false, () => navigate('/whatsapp'), 'WhatsApp', <MessageCircle size={17} />)}
 
       <div style={{ flex: 1 }} />
 
