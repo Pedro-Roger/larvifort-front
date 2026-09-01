@@ -2,7 +2,14 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 
 const BASE_URL = import.meta.env.VITE_API_URL as string
 
-export function useSSE(onEvent: (event: string, data: unknown) => void) {
+// Lista default cobre inbox/conversas; o board (PipelinePage) passa a
+// própria lista (order_created/order_updated/order_stage_changed/stage_*)
+// sem precisar dar subscribe em tudo. SSE heartbeat vem do backend a cada
+// 30s (routes/events.ts), então EventSource reconecta sozinho.
+export function useSSE(
+  onEvent: (event: string, data: unknown) => void,
+  events: string[] = ['new_message', 'conversation_updated'],
+) {
   const callbackRef = useRef(onEvent)
 
   // Mantém a ref sincronizada sem mutar durante a renderização (evita
@@ -10,6 +17,11 @@ export function useSSE(onEvent: (event: string, data: unknown) => void) {
   useLayoutEffect(() => {
     callbackRef.current = onEvent
   })
+
+  // Stable-join por string pra não reabrir a conexão a cada render quando
+  // o chamador passa array literal (PipelinePage usa lista literal de
+  // eventos do board).
+  const eventsKey = events.join(',')
 
   useEffect(() => {
     const es = new EventSource(`${BASE_URL}/api/events`, { withCredentials: true })
@@ -22,9 +34,10 @@ export function useSSE(onEvent: (event: string, data: unknown) => void) {
       }
     }
 
-    es.addEventListener('new_message', handle('new_message'))
-    es.addEventListener('conversation_updated', handle('conversation_updated'))
+    for (const name of eventsKey.split(',')) {
+      es.addEventListener(name, handle(name))
+    }
 
     return () => es.close()
-  }, [])
+  }, [eventsKey])
 }

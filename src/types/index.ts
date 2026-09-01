@@ -168,6 +168,29 @@ export interface Planning {
   createdAt: string
 }
 
+export interface ActivityLog {
+  id: string
+  orderId: string
+  organizationId: string
+  userId: string | null
+  activityType: string
+  description: string | null
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  user: { id: string; name: string | null } | null
+}
+
+export interface CardComment {
+  id: string
+  orderId: string
+  organizationId: string
+  userId: string
+  content: string
+  createdAt: string
+  updatedAt: string
+  user: { id: string; name: string | null }
+}
+
 export interface Order {
   id: string
   organizationId: string
@@ -183,12 +206,77 @@ export interface Order {
   notes: string | null
   commercialStage: OrderStage
   operationalStage: OrderStage
+  // Fonte de verdade do board (CRM realtime, spec 2026-08-28): aponta pra
+  // colunas reais de pipeline_stages. Nullable só durante migração — o
+  // backend sempre popula na criação/backfill.
+  pipelineStageId: string | null
   createdAt: string
   updatedAt: string
   client: Pick<Client, 'id' | 'name'> | null
   // Só vem preenchido em GET /orders/:id, PATCH /orders/:id(/stage) — a
   // listagem (GET /orders) não faz join com plannings, ver routes/orders.ts.
   planning?: Planning | null
+}
+
+// CRM realtime (spec 2026-08-28-crm-board-realtime-design): board
+// configurável por org, colunas vêm do banco. GET /api/v1/board devolve o
+// payload pronto pra render — ver backend/src/routes/board.ts.
+export interface PipelineSummary {
+  id: string
+  organizationId: string
+  name: string
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PipelineStage {
+  id: string
+  pipelineId: string
+  name: string
+  color: string
+  position: number
+  semanticKey: OrderStage | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// Board GET /api/v1/board: stages ativos em ordem + orderCount calculado no
+// backend sobre o subconjunto de cards do usuário (gestor vê tudo, comercial
+// a própria carteira — mesmo critério de GET /orders).
+export interface BoardStage extends PipelineStage {
+  orderCount: number
+  hasPermissions: boolean
+}
+
+export interface Board {
+   pipeline: PipelineSummary
+   stages: BoardStage[]
+   orders: Order[]
+ }
+
+export interface ColumnFormula {
+   id: string
+   pipelineStageId: string
+   organizationId: string
+   name: string
+   expression: string
+   resultType: "number" | "currency" | "percentage" | "text" | "date"
+   isActive: boolean
+   createdAt: string
+   updatedAt: string
+ }
+
+export interface ColumnPermission {
+  id: string
+  pipelineStageId: string
+  organizationId: string
+  granteeType: 'role' | 'user'
+  granteeId: string | null
+  permissions: Record<string, boolean>
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Reminder {

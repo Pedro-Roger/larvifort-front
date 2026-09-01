@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { X, RotateCcw } from 'lucide-react'
+import { X, RotateCcw, Send, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { useSSE } from '@/hooks/useSSE'
 import {
   AQUAFORT_SIMULATED_SCENARIOS,
   ORDER_STAGES,
   type Order,
   type Planning,
+  type ActivityLog,
+  type CardComment,
 } from '@/types'
 import {
   AQUAFORT_AVAILABILITY_STATUS_COLORS,
@@ -74,11 +77,25 @@ export default function OrderDetailPanel({ orderId, onClose, onUpdate }: Props) 
   const [simulate, setSimulate]               = useState('')
   const [savingStage, setSavingStage]         = useState(false)
   const [retrying, setRetrying]               = useState(false)
+  const [comments, setComments]               = useState<CardComment[]>([])
+  const [activityLogs, setActivityLogs]       = useState<ActivityLog[]>([])
+  const [commentText, setCommentText]         = useState('')
+  const [commentsLoading, setCommentsLoading] = useState(false)
+
+  useSSE((event, data) => {
+    if (event === 'comment_added') {
+      const comment = data as CardComment
+      setComments((prev) => [comment, ...prev])
+    } else if (event === 'comment_edited') {
+      const comment = data as CardComment
+      setComments((prev) => prev.map((c) => (c.id === comment.id ? comment : c)))
+    } else if (event === 'comment_deleted') {
+      const { commentId } = data as { commentId: string }
+      setComments((prev) => prev.filter((c) => c.id !== commentId))
+    }
+  }, ['comment_added', 'comment_edited', 'comment_deleted'])
 
   useEffect(() => {
-    // Mesmo padrão de ClientDetailPanel/AppPage:fetchDetail (setTimeout(...,0)
-    // + ignoreRef) — evita disparar setState de forma síncrona dentro do
-    // corpo do effect (react-hooks/set-state-in-effect).
     const ignoreRef = { current: false }
     const timer = setTimeout(() => {
       setLoading(true)
@@ -94,6 +111,18 @@ export default function OrderDetailPanel({ orderId, onClose, onUpdate }: Props) 
     }, 0)
     return () => { clearTimeout(timer); ignoreRef.current = true }
   }, [orderId])
+
+  useEffect(() => {
+    if (!order) return
+    setCommentsLoading(true)
+    api.get<CardComment[]>(`/api/v1/orders/${orderId}/comments`)
+      .then((data) => setComments(data))
+      .catch(() => {})
+      .finally(() => setCommentsLoading(false))
+    api.get<ActivityLog[]>(`/api/v1/orders/${orderId}/activity-logs`)
+      .then((data) => setActivityLogs(data))
+      .catch(() => {})
+  }, [order?.id])
 
   const stageChanged = order && (commercialStage !== order.commercialStage || operationalStage !== order.operationalStage)
 
@@ -141,6 +170,18 @@ export default function OrderDetailPanel({ orderId, onClose, onUpdate }: Props) 
       toast.error(err instanceof Error ? err.message : 'Erro ao repetir sincronização')
     } finally {
       setRetrying(false)
+    }
+  }
+
+  async function handleAddComment() {
+    if (!order || !commentText.trim()) return
+    try {
+      const comment = await api.post<CardComment>(`/api/v1/orders/${orderId}/comments`, { content: commentText })
+      setComments((prev) => [comment, ...prev])
+      setCommentText('')
+      toast.success('Comentário adicionado')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao adicionar comentário')
     }
   }
 
@@ -302,6 +343,71 @@ export default function OrderDetailPanel({ orderId, onClose, onUpdate }: Props) 
                   </div>
                 </div>
               )}
+
+              {/* Feed de Atividade e Comentários */}
+              <div>
+                <p style={{ ...labelStyle, marginBottom: 8 }}>
+                  <MessageSquare size={12} style={{ display: 'inline', marginRight: 4 }} />
+                  Atividade e Comentários
+                </p>
+
+                {activityLogs.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+                    {activityLogs.map((log) => (
+                      <div key={log.id} style={{ fontSize: 11, color: '#888', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                        <span style={{ color: '#999', marginRight: 6 }}>{formatDateTime(log.createdAt)}</span>
+                        {log.description}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {commentsLoading ? (
+                  <p style={{ fontSize: 11, color: '#bbb', margin: '4px 0' }}>Carregando comentários...</p>
+                ) : (
+                  <>
+                    {comments.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                        {comments.map((comment) => (
+                          <div key={comment.id} style={{ fontSize: 12, padding: '6px 8px', backgroundColor: '#fafafa', borderRadius: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span style={{ fontWeight: 600, color: '#333' }}>{comment.user?.name ?? 'Desconhecido'}</span>
+                              <span style={{ color: '#bbb', fontSize: 10 }}>{formatDateTime(comment.createdAt)}</span>
+                            </div>
+                            <p style={{ margin: 0, color: '#555', fontSize: 11 }}>{comment.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="text"
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Adicionar comentário..."
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment() }}
+                        style={{
+                          flex: 1, padding: '6px 10px', fontSize: 12,
+                          border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6,
+                          outline: 'none', fontFamily: 'inherit',
+                        }}
+                      />
+                      <button
+                        onClick={handleAddComment}
+                        disabled={!commentText.trim()}
+                        style={{
+                          padding: '6px 10px', fontSize: 12, fontWeight: 500,
+                          backgroundColor: commentText.trim() ? '#F2E600' : '#f3f4f6',
+                          border: 'none', borderRadius: 6, cursor: commentText.trim() ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        <Send size={12} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
