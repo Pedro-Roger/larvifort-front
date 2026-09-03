@@ -28,3 +28,4 @@ dist-ssr
 # vars necessárias (VITE_API_URL). Precisa ficar versionado. Mesmo padrão
 # aplicado em backend/.gitignore.
 !.env.local.example
+.vercel

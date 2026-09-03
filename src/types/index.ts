@@ -71,6 +71,11 @@ export interface Company {
   farmLocation: string | null
   farmSize: CompanyFarmSize | null
   createdAt: string
+  tradeName?: string | null
+  legalName?: string | null
+  normalizedCnpj?: string | null
+  commercialGroupId?: string | null
+  parentCompanyId?: string | null
 }
 
 export interface CompanyContact {
@@ -92,6 +97,8 @@ export interface Conversation {
   lastMessageAt: string | null
   unreadCount: number
   createdAt: string
+  assignedUserId: string | null
+  assignedUser: { id: string; name: string | null } | null
   client: (Pick<Client, 'id' | 'name' | 'whatsapp'> & {
     company: Pick<Company, 'id' | 'name'> | null
   }) | null
@@ -203,6 +210,7 @@ export interface Order {
   genetics: string | null
   desiredDeliveryDate: string | null
   priority: OrderPriority
+  probability?: number | null
   notes: string | null
   commercialStage: OrderStage
   operationalStage: OrderStage

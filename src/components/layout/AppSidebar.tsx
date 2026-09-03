@@ -1,30 +1,17 @@
-import { Plus, Users, Bell, Settings, ShoppingCart, CalendarClock, Target, Cable, LayoutDashboard, MessageCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { LayoutDashboard, Users, MessageCircle, Target, BarChart, ChevronLeft, ChevronRight, LogOut, GitBranch, Sun, Moon } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { logout } from '@/lib/auth'
-import type { Company } from '@/types'
-import { USER_ROLE_LABELS } from '@/lib/domainLabels'
+import { cn } from '@/lib/utils'
+import { useTheme } from '@/components/theme-provider'
 
-const COMPANY_COLORS = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#ea580c']
-
-export type SidebarView = 'company' | 'all-clients' | 'reminders'
-
-interface Props {
-  companies:          Company[]
-  sidebarView:        SidebarView
-  selectedCompanyId:  string | null
-  onSelectCompany:    (id: string) => void
-  onViewAllClients:   () => void
-  onViewReminders:    () => void
-  onAddCompany:       () => void
-}
-
-export default function AppSidebar({
-  companies, sidebarView, selectedCompanyId,
-  onSelectCompany, onViewAllClients, onViewReminders, onAddCompany,
-}: Props) {
-  const navigate   = useNavigate()
+export default function AppSidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { user, clearAuth } = useAuthStore()
+  const { theme, toggleTheme } = useTheme()
+  const [collapsed, setCollapsed] = useState(false)
 
   async function handleLogout() {
     await logout()
@@ -32,137 +19,106 @@ export default function AppSidebar({
     navigate('/login')
   }
 
-  const initial = (user?.name ?? user?.email ?? '?').charAt(0).toUpperCase()
-  const identityLabel = user
-    ? `${user.name ?? user.email} · ${USER_ROLE_LABELS[user.role]}`
-    : ''
+  const initial = (user?.name ?? user?.email ?? 'M').charAt(0).toUpperCase()
 
-  const iconBtn = (active: boolean, onClick: () => void, title: string, children: React.ReactNode) => (
-    <button
-      title={title}
-      onClick={onClick}
-      style={{
-        width: 36, height: 36, borderRadius: 8,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: 'none', cursor: 'pointer', flexShrink: 0,
-        backgroundColor: active ? '#1f1f1f' : 'transparent',
-        color: active ? '#F2E600' : '#666',
-      }}
-    >
-      {children}
-    </button>
-  )
+  const navItems = [
+    { path: '/empresas', match: ['/empresas', '/'], icon: Users, label: 'Clientes' },
+    { path: '/projects', match: ['/projects', '/kanban'], icon: GitBranch, label: 'Projetos' },
+    { path: '/dashboard', match: ['/dashboard'], icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/whatsapp', match: ['/whatsapp'], icon: MessageCircle, label: 'WhatsApp' },
+    { path: '/pedidos', match: ['/pedidos'], icon: Target, label: 'Pedidos' },
+    { path: '/metas', match: ['/metas'], icon: BarChart, label: 'Metas' },
+  ]
 
   return (
-    <aside style={{
-      width: 64, flexShrink: 0,
-      backgroundColor: '#111',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      paddingTop: 14, paddingBottom: 14, gap: 4,
-    }}>
-      {/* Avatar */}
-      <div style={{
-        width: 34, height: 34, borderRadius: '50%',
-        backgroundColor: '#F2E600',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 13, fontWeight: 700, color: '#111',
-        flexShrink: 0, marginBottom: 6, cursor: 'default',
-      }}
-        title={identityLabel}
-      >
-        {initial}
+    <aside
+      className={cn(
+        'flex flex-col h-screen z-50 transition-all duration-200 ease-in-out flex-shrink-0',
+        'bg-[hsl(222,47%,11%)] backdrop-blur-xl',
+        collapsed ? 'w-16' : 'w-[260px]'
+      )}
+    >
+      {/* Logo / User Header */}
+      <div className={cn(
+        'flex items-center gap-3 border-b border-white/10',
+        collapsed ? 'justify-center px-2 py-4' : 'px-4 py-5'
+      )}>
+        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <span className="text-white text-sm font-bold">{initial}</span>
+        </div>
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-white truncate">
+              {user?.name || user?.email || 'Usuário'}
+            </div>
+            <div className="text-xs text-slate-400">CRM AquaFort</div>
+          </div>
+        )}
       </div>
 
-      <div style={{ width: 34, height: 1, backgroundColor: '#252525', margin: '2px 0 6px' }} />
+      {/* Navigation */}
+      <nav className={cn('flex-1 overflow-y-auto py-3', collapsed ? 'px-2' : 'px-3')}>
+        <div className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/'))
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+                  collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5',
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                )}
+              >
+                <item.icon size={18} className={cn(isActive ? 'text-white' : 'text-slate-500')} />
+                {!collapsed && <span>{item.label}</span>}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
 
-      {/* Company icons */}
-      {companies.map((co, i) => {
-        const isActive = sidebarView === 'company' && selectedCompanyId === co.id
-        const color    = COMPANY_COLORS[i % COMPANY_COLORS.length]
-        return (
-          <button
-            key={co.id}
-            title={co.name}
-            onClick={() => onSelectCompany(co.id)}
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, color: '#fff',
-              backgroundColor: color,
-              border: isActive ? '2.5px solid #F2E600' : '2.5px solid transparent',
-              cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box',
-            }}
-          >
-            {co.name.charAt(0).toUpperCase()}
-          </button>
-        )
-      })}
+      {/* Footer */}
+      <div className={cn('border-t border-white/10 py-3', collapsed ? 'px-2' : 'px-3')}>
+        <button
+          onClick={toggleTheme}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+            'text-slate-400 hover:bg-white/5 hover:text-white',
+            collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+          )}
+        >
+          {theme === 'light' ? <Moon size={18} className="text-slate-500" /> : <Sun size={18} className="text-slate-500" />}
+          {!collapsed && <span>{theme === 'light' ? 'Modo escuro' : 'Modo claro'}</span>}
+        </button>
 
-      {/* Add company */}
-      <button
-        title="Adicionar empresa"
-        onClick={onAddCompany}
-        style={{
-          width: 34, height: 34, borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: '1.5px dashed #333', backgroundColor: 'transparent',
-          cursor: 'pointer', color: '#555', flexShrink: 0,
-        }}
-      >
-        <Plus size={14} />
-      </button>
+        <button
+          onClick={handleLogout}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+            'text-slate-400 hover:bg-white/5 hover:text-white',
+            collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+          )}
+        >
+          <LogOut size={18} className="text-slate-500" />
+          {!collapsed && <span>Sair</span>}
+        </button>
 
-      <div style={{ width: 34, height: 1, backgroundColor: '#252525', margin: '6px 0' }} />
-
-      {/* Dashboard (Bloco 8) — item de destaque na navegação (decisão de
-          produto registrada em pages/DashboardPage.tsx e no diário do
-          projeto: não virou rota `/`, mas é o item mais visível do sidebar e
-          o destino pós-login). Fundo em accent sempre ligado (não só quando
-          ativo, diferente dos outros ícones abaixo via iconBtn) — é a única
-          forma de "destaque" sem introduzir badge/texto novo neste sidebar
-          só de ícones. */}
-      <button
-        title="Dashboard"
-        onClick={() => navigate('/dashboard')}
-        style={{
-          width: 34, height: 34, borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: 'none', cursor: 'pointer', flexShrink: 0,
-          backgroundColor: '#F2E600', color: '#111',
-        }}
-      >
-        <LayoutDashboard size={17} />
-      </button>
-
-      <div style={{ width: 34, height: 1, backgroundColor: '#252525', margin: '6px 0' }} />
-
-      {iconBtn(sidebarView === 'all-clients', onViewAllClients, 'Todos os clientes', <Users size={17} />)}
-      {iconBtn(sidebarView === 'reminders',   onViewReminders,  'Lembretes',         <Bell size={17} />)}
-      {/* Pedidos e Agenda são rotas próprias (/pedidos, /agenda — ver
-          App.tsx), não um sidebarView interno — navegam pra fora de AppPage
-          em vez de mudar view local. "Lembretes" (Bell, acima) continua
-          existindo como a lista solta simples já usada dentro da inbox de
-          clientes (ClientColumn) — não duplicado nem removido; Agenda
-          (Bloco 5) é o módulo novo e mais completo (alertas de planejamento
-          + navegação por semana + criação), rota separada por ter layout de
-          página próprio, mesmo critério de estrutura já usado para Pedidos. */}
-      {iconBtn(false, () => navigate('/pedidos'), 'Pedidos', <ShoppingCart size={17} />)}
-      {iconBtn(false, () => navigate('/agenda'), 'Agenda', <CalendarClock size={17} />)}
-      {/* Metas (Bloco 6), mesma rota própria de Pedidos/Agenda. */}
-      {iconBtn(false, () => navigate('/metas'), 'Metas', <Target size={17} />)}
-      {/* Integração (Bloco 7) — exclusivo de gestor (spec seção 2: só ele
-          "consulta o estado e o histórico da integração"), item escondido
-          para `comercial` (mesmo critério RBAC visual já usado nos módulos
-          anteriores). A rota em App.tsx também bloqueia acesso direto por
-          URL via ProtectedRoute roles={['gestor']}. */}
-      {user?.role === 'gestor' &&
-        iconBtn(false, () => navigate('/integracao'), 'Integração', <Cable size={17} />)}
-      {user?.role === 'gestor' &&
-        iconBtn(false, () => navigate('/whatsapp'), 'WhatsApp', <MessageCircle size={17} />)}
-
-      <div style={{ flex: 1 }} />
-
-      {iconBtn(false, handleLogout, 'Sair', <Settings size={17} />)}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150',
+            'text-slate-500 hover:bg-white/5 hover:text-slate-300',
+            collapsed ? 'justify-center px-2 py-2.5 mt-1' : 'px-3 py-2.5 mt-1 justify-between'
+          )}
+        >
+          {!collapsed && <span>Recolher</span>}
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+      </div>
     </aside>
   )
 }

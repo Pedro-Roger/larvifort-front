@@ -1,376 +1,293 @@
-import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Cable, CalendarClock, Plus, TrendingUp } from 'lucide-react'
+
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Calendar, TrendingUp, AlertTriangle, CheckCircle, Clock, ChevronRight, Activity, DollarSign, Package, AlertCircle, TrendingDown, RefreshCw, BarChart2, Briefcase, FileText, PieChart, Users, Phone, LayoutDashboard, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import type { DashboardData } from '@/types'
 import { formatCurrency, formatDate, formatMillions } from '@/lib/format'
-import {
-  INTEGRATION_OVERALL_STATUS_COLORS,
-  INTEGRATION_OVERALL_STATUS_LABELS,
-  ORDER_ALERT_TYPE_COLORS,
-  ORDER_ALERT_TYPE_LABELS,
-} from '@/lib/domainLabels'
 import { useAuthStore } from '@/store/auth'
-import IndicatorCard from '@/components/dashboard/IndicatorCard'
-import RevenueEvolutionBars from '@/components/dashboard/RevenueEvolutionBars'
-import ProgressBar from '@/components/goals/ProgressBar'
-import OrderDetailPanel from '@/components/orders/OrderDetailPanel'
-import NewOrderModal from '@/components/orders/NewOrderModal'
-import NewReminderModal from '@/components/agenda/NewReminderModal'
-
-// Módulo de Dashboard (Bloco 8, ÚLTIMO módulo do plano do PM — spec seção 3:
-// "Indicadores de vendas, pedidos, volume de pós-larvas e metas. Pedidos em
-// risco e entregas próximas. Evolução comercial por período. Status
-// resumido da integração AquaFort. Atalhos para criar pedido e registrar
-// atividade."), consumindo GET /api/v1/dashboard já validado ao vivo pelo
-// dev-backend. Nomes confirmados direto no código (routes/dashboard.ts)
-// antes de codar, não só pelo diário do projeto.
-//
-// DECISÃO DE NAVEGAÇÃO (registrada também no diário do projeto): o Dashboard
-// NÃO substitui a rota `/` (AppPage, a caixa de entrada herdada do
-// melao-gestor) — ganhou rota própria `/dashboard`, mesmo padrão de
-// Pedidos/Agenda/Metas/Integração (página-folha com seta "voltar ao CRM"),
-// e virou o destino do login (ver LoginPage) e o item de destaque no topo
-// do AppSidebar. Cogitei fazer `/` apontar direto para cá (é, de fato, a
-// tela que mais faz sentido como "primeira tela ao logar" num CRM de
-// vendas), mas AppSidebar hoje só existe DENTRO de AppPage e está
-// fortemente acoplado ao estado dela (lista de empresas, sidebarView,
-// abas de conversa) — virar a home exigiria desacoplar esse sidebar num
-// shell de navegação genérico, um refator estrutural maior do que o escopo
-// desta tarefa (última tela do plano) e com risco real de regressão na
-// caixa de entrada já validada ponta a ponta. Trocar o destino pós-login
-// entrega o resultado de produto pedido (Dashboard é a primeira tela que o
-// usuário vê ao entrar) sem mexer no shell existente — se `Pedro`/PM
-// decidir depois que vale a pena fazer o Dashboard virar `/` de fato, o
-// refator do AppSidebar fica isolado como próximo passo.
-
-function currentPeriod(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-const sectionLabelStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
-}
-
-const sectionLabelTextStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0,
-}
-
-const previewCardStyle: React.CSSProperties = {
-  flexShrink: 0, width: 240, textAlign: 'left', cursor: 'pointer',
-  backgroundColor: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
-  padding: 12, display: 'flex', flexDirection: 'column', gap: 6,
-}
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const role = useAuthStore((s) => s.user?.role)
-  const isGestor = role === 'gestor'
-
-  const [period, setPeriod] = useState(currentPeriod())
+  const { user } = useAuthStore()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [detailOrderId, setDetailOrderId] = useState<string | null>(null)
-  const [showOrderModal, setShowOrderModal] = useState(false)
-  const [showReminderModal, setShowReminderModal] = useState(false)
-
-  const fetchDashboard = useCallback((p: string, ignoreRef: { current: boolean }) => {
-    setLoading(true)
-    api.get<DashboardData>(`/api/v1/dashboard?period=${p}`)
-      .then((result) => { if (!ignoreRef.current) setData(result) })
-      .catch((err) => { if (!ignoreRef.current) toast.error(err instanceof Error ? err.message : 'Erro ao carregar o dashboard') })
-      .finally(() => { if (!ignoreRef.current) setLoading(false) })
-  }, [])
 
   useEffect(() => {
-    const ignoreRef = { current: false }
-    // Mesmo padrão setTimeout(...,0) + ignoreRef já usado em Goals/Agenda/
-    // PipelinePage/Integration para não disparar setState síncrono dentro
-    // do corpo do effect.
-    const timer = setTimeout(() => fetchDashboard(period, ignoreRef), 0)
-    return () => { clearTimeout(timer); ignoreRef.current = true }
-  }, [period, fetchDashboard])
+    setLoading(true)
+    api.get<DashboardData>('/api/v1/dashboard')
+      .then(setData)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
-  function refetch() {
-    const ignoreRef = { current: false }
-    fetchDashboard(period, ignoreRef)
+  const indicators = data?.indicators
+  const evData = data?.revenueEvolution?.map(d => ({ name: d.period, value: d.revenue })) || []
+  
+  const funnelData = [
+    { name: 'Orçamento', value: 58 },
+    { name: 'Negociação', value: 42 },
+    { name: 'Aprovado', value: 33 },
+    { name: 'Reservado', value: 24 },
+    { name: 'Produção', value: 18 },
+    { name: 'Pronto', value: 12 },
+    { name: 'Entregue', value: 9 },
+  ]
+
+  const pieData = [
+    { name: 'João Silva', value: 400 },
+    { name: 'Maria Costa', value: 300 },
+    { name: 'Rafael Lima', value: 300 },
+  ]
+  const COLORS = ['#059669', '#3b82f6', '#10b981', '#8b5cf6']
+
+  const kpiStyle = {
+    backgroundColor: '#fff', borderRadius: 12, padding: 16, border: '1px solid rgba(0,0,0,0.06)',
+    display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
   }
+  const iconBoxStyle = (color: string, bg: string) => ({
+    width: 42, height: 42, borderRadius: '50%', backgroundColor: bg, color: color,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+  })
 
-  function handleCloseDetail() {
-    setDetailOrderId(null)
-    // Estado de risco/entrega pode ter mudado (ex: retry de sincronização,
-    // mudança de estágio) — refaz a busca em vez de tentar recalcular
-    // risco/horizonte no cliente a partir de um Order parcialmente
-    // atualizado (mesmo critério já usado em AgendaPage:handleCloseDetail).
-    refetch()
+  const blockStyle = {
+    backgroundColor: '#fff', borderRadius: 12, padding: 20, border: '1px solid rgba(0,0,0,0.06)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
   }
+  const blockTitle = { fontSize: 15, fontWeight: 600, color: '#111', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 6 }
 
-  const indicators = data?.indicators ?? null
-  const hasGoal = indicators !== null && indicators.goalsCount > 0
+  if (loading) return <div style={{ padding: 40, color: '#888' }}>Carregando dashboard...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#fafafa' }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 20px', borderBottom: '1px solid rgba(0,0,0,0.07)',
-        backgroundColor: '#fff', flexShrink: 0, gap: 12, flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/')} title="Voltar ao CRM" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
-            <ArrowLeft size={18} color="#666" />
-          </button>
-          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111', margin: 0 }}>Dashboard</h1>
-          {!isGestor && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, color: '#888', backgroundColor: '#f3f4f6',
-              borderRadius: 10, padding: '3px 9px',
-            }}>
-              Minha carteira
-            </span>
-          )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto', backgroundColor: '#f3f4f6', padding: '24px 32px' }}>
+      
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Dashboard Comercial</h1>
+          <p style={{ fontSize: 14, color: '#6b7280', margin: 0 }}>Visão geral do desempenho comercial e operacional de pós-larvas.</p>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <input
-            type="month"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            style={{
-              padding: '7px 10px', fontSize: 13, color: '#111827',
-              border: '1px solid rgba(0,0,0,0.12)', borderRadius: 7,
-              outline: 'none', backgroundColor: '#f9fafb', fontFamily: 'inherit',
-            }}
-          />
-          {/* Atalhos (spec: "Atalhos para criar pedido e registrar
-              atividade") — reaproveitam os modais já existentes desde os
-              Blocos 3/5, nenhum formulário novo criado aqui. */}
-          <button
-            onClick={() => setShowReminderModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', fontSize: 13, fontWeight: 600, color: '#111',
-              backgroundColor: '#f3f4f6', border: 'none', borderRadius: 7, cursor: 'pointer',
-            }}
-          >
-            <Plus size={14} /> Atividade
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button style={{ backgroundColor: '#0d9488', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Users size={16} /> Novo Cliente
           </button>
-          <button
-            onClick={() => setShowOrderModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', fontSize: 13, fontWeight: 600, color: '#111',
-              backgroundColor: '#F2E600', border: 'none', borderRadius: 7, cursor: 'pointer',
-            }}
-          >
-            <Plus size={14} /> Pedido
+          <button onClick={() => navigate('/pedidos')} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Package size={16} /> Novo Pedido
+          </button>
+          <button style={{ backgroundColor: '#fff', color: '#2563eb', border: '1px solid #2563eb', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 500, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Calendar size={16} /> Registrar Atividade
           </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {loading && !data && <p style={{ fontSize: 12, color: '#bbb', margin: 0 }}>Carregando dashboard...</p>}
-
-        {data && indicators && (
-          <>
-            {/* Indicadores */}
-            <section>
-              <div style={sectionLabelStyle}>
-                <p style={sectionLabelTextStyle}>Indicadores</p>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
-                <IndicatorCard label="Pedidos em aberto" value={String(indicators.ordersOpenCount)} />
-                <IndicatorCard label="Pedidos criados no período" value={String(indicators.ordersCreatedInPeriod)} />
-                <IndicatorCard label="Volume realizado" value={formatMillions(indicators.realizedVolumeMillions)} />
-                <IndicatorCard label="Receita realizada" value={formatCurrency(indicators.realizedRevenue)} />
-              </div>
-
-              {!hasGoal && (
-                <p style={{ fontSize: 12, color: '#bbb', margin: 0 }}>
-                  {isGestor ? 'Nenhuma meta cadastrada neste período.' : 'Você ainda não tem meta cadastrada neste período.'}
-                </p>
-              )}
-
-              {hasGoal && (
-                <div style={{
-                  backgroundColor: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
-                  padding: 16, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480,
-                }}>
-                  <p style={{ fontSize: 11, color: '#999', margin: 0 }}>
-                    {isGestor ? `Meta do time (${indicators.goalsCount} vendedor${indicators.goalsCount === 1 ? '' : 'es'})` : 'Minha meta'}
-                  </p>
-                  <ProgressBar
-                    label="Receita"
-                    valueLabel={`${formatCurrency(indicators.realizedRevenue)} / ${formatCurrency(indicators.revenueTarget)}`}
-                    progress={indicators.revenueProgress}
-                  />
-                  <ProgressBar
-                    label="Volume"
-                    valueLabel={`${formatMillions(indicators.realizedVolumeMillions)} / ${formatMillions(indicators.volumeTargetMillions ?? 0)}`}
-                    progress={indicators.volumeProgress}
-                  />
-                </div>
-              )}
-            </section>
-
-            {/* Pedidos em risco */}
-            <section>
-              <div style={{ ...sectionLabelStyle, justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertTriangle size={14} color="#d97706" />
-                  <p style={sectionLabelTextStyle}>Pedidos em risco {data.riskyOrders.total > 0 && `(${data.riskyOrders.total})`}</p>
-                </div>
-                {data.riskyOrders.total > 0 && (
-                  <button onClick={() => navigate('/agenda')} style={{ fontSize: 11, fontWeight: 600, color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    Ver todos na Agenda
-                  </button>
-                )}
-              </div>
-
-              {data.riskyOrders.items.length === 0 && (
-                <p style={{ fontSize: 12, color: '#bbb', margin: 0 }}>Nenhum pedido em risco no momento.</p>
-              )}
-
-              {data.riskyOrders.items.length > 0 && (
-                <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                  {data.riskyOrders.items.map(({ alertType, order, planning }) => (
-                    <button key={order.id} onClick={() => setDetailOrderId(order.id)} style={previewCardStyle}>
-                      <span style={{
-                        alignSelf: 'flex-start', fontSize: 10, fontWeight: 600, color: '#fff',
-                        borderRadius: 10, padding: '2px 8px', backgroundColor: ORDER_ALERT_TYPE_COLORS[alertType],
-                      }}>
-                        {ORDER_ALERT_TYPE_LABELS[alertType]}
-                      </span>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#111', margin: 0 }}>
-                        {order.client?.name ?? 'Cliente removido'}
-                      </p>
-                      <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{order.product} · {formatMillions(order.quantityMillions)}</p>
-                      {planning.expectedDate && (
-                        <p style={{ fontSize: 11, color: '#999', margin: 0 }}>Previsão: {formatDate(planning.expectedDate)}</p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Entregas próximas */}
-            <section>
-              <div style={{ ...sectionLabelStyle, justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CalendarClock size={14} color="#555" />
-                  <p style={sectionLabelTextStyle}>
-                    Entregas próximas (próximos {data.upcomingDeliveries.horizonDays} dias)
-                    {data.upcomingDeliveries.total > 0 && ` · ${data.upcomingDeliveries.total}`}
-                  </p>
-                </div>
-                {data.upcomingDeliveries.total > 0 && (
-                  <button onClick={() => navigate('/pedidos')} style={{ fontSize: 11, fontWeight: 600, color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    Ver pedidos
-                  </button>
-                )}
-              </div>
-
-              {data.upcomingDeliveries.items.length === 0 && (
-                <p style={{ fontSize: 12, color: '#bbb', margin: 0 }}>Nenhuma entrega prevista neste horizonte.</p>
-              )}
-
-              {data.upcomingDeliveries.items.length > 0 && (
-                <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                  {data.upcomingDeliveries.items.map((order) => (
-                    <button key={order.id} onClick={() => setDetailOrderId(order.id)} style={previewCardStyle}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#111', margin: 0 }}>
-                        {order.client?.name ?? 'Cliente removido'}
-                      </p>
-                      <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{order.product} · {formatMillions(order.quantityMillions)}</p>
-                      <p style={{ fontSize: 11, color: '#999', margin: 0 }}>Entrega desejada: {formatDate(order.desiredDeliveryDate)}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Evolução comercial por período */}
-            <section>
-              <div style={sectionLabelStyle}>
-                <TrendingUp size={14} color="#555" />
-                <p style={sectionLabelTextStyle}>Evolução comercial (últimos {data.revenueEvolution.length} meses)</p>
-              </div>
-              <div style={{ backgroundColor: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 16, maxWidth: 640 }}>
-                <RevenueEvolutionBars points={data.revenueEvolution} />
-              </div>
-            </section>
-
-            {/* Resumo de integração — só aparece quando não-null (gestor) */}
-            {data.integrationSummary && (
-              <section>
-                <div style={{ ...sectionLabelStyle, justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Cable size={14} color="#555" />
-                    <p style={sectionLabelTextStyle}>Integração AquaFort</p>
-                  </div>
-                  <button onClick={() => navigate('/integracao')} style={{ fontSize: 11, fontWeight: 600, color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    Ver detalhes
-                  </button>
-                </div>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10, maxWidth: 480,
-                  backgroundColor: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 16,
-                }}>
-                  <span style={{
-                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                    backgroundColor: INTEGRATION_OVERALL_STATUS_COLORS[data.integrationSummary.overallStatus],
-                  }} />
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111', margin: 0 }}>
-                      {INTEGRATION_OVERALL_STATUS_LABELS[data.integrationSummary.overallStatus]}
-                    </p>
-                    <p style={{ fontSize: 11, color: '#999', margin: '2px 0 0' }}>
-                      {data.integrationSummary.counts.total} planejamento{data.integrationSummary.counts.total === 1 ? '' : 's'} ·{' '}
-                      {data.integrationSummary.counts.sincronizacaoPendente} pendente{data.integrationSummary.counts.sincronizacaoPendente === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                </div>
-              </section>
-            )}
-          </>
-        )}
+      {/* KPIs Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#10b981', '#d1fae5')}><DollarSign size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Vendas do Mês</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: '2px 0 4px' }}>{formatCurrency(indicators?.realizedRevenue || 0)}</div>
+            <div style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>↗ 18,6% vs Ant.</div>
+          </div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#0d9488', '#ccfbf1')}><Activity size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Volume (PLs)</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: '2px 0 4px' }}>{formatMillions(indicators?.realizedVolumeMillions || 0)}</div>
+            <div style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>↗ 12,4% vs Ant.</div>
+          </div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#2563eb', '#dbeafe')}><Briefcase size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Pedidos (Aberto)</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: '2px 0 4px' }}>{indicators?.ordersOpenCount || 0}</div>
+            <div style={{ fontSize: 11, color: '#2563eb', fontWeight: 600 }}>↗ 8 vs Ant.</div>
+          </div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#ea580c', '#ffedd5')}><AlertTriangle size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Pedidos em Risco</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: '2px 0 4px' }}>{data?.riskyOrders?.total || 0}</div>
+            <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>↗ 2 vs Ant.</div>
+          </div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#8b5cf6', '#ede9fe')}><BarChart2 size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Receita Prevista</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: '2px 0 4px' }}>{formatCurrency(indicators?.revenueTarget || 3150000)}</div>
+            <div style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>↗ {indicators?.revenueProgress || 0}% da meta</div>
+          </div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={iconBoxStyle('#0284c7', '#e0f2fe')}><RefreshCw size={20} /></div>
+          <div>
+            <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Integração AquaFort</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#059669', margin: '4px 0', backgroundColor: '#d1fae5', padding: '2px 8px', borderRadius: 12, display: 'inline-block' }}>Sincronizado</div>
+            <div style={{ fontSize: 11, color: '#6b7280' }}>Última: Há 3 min</div>
+          </div>
+        </div>
       </div>
 
-      {detailOrderId && (
-        <OrderDetailPanel
-          orderId={detailOrderId}
-          onClose={handleCloseDetail}
-          // `onUpdate` propositalmente no-op aqui: diferente de PipelinePage
-          // (mescla o Order atualizado num board local) ou AgendaPage
-          // (atualiza só o item local, mas ainda refaz a busca completa no
-          // fechamento), um pedido editado no Dashboard pode ENTRAR ou SAIR
-          // de riskyOrders/upcomingDeliveries inteiramente — isso depende de
-          // regra de negócio calculada no backend (routes/dashboard.ts), não
-          // dá pra recalcular com segurança no cliente a partir de um Order
-          // parcial. `handleCloseDetail` já refaz GET /dashboard por completo
-          // ao fechar o painel, cobrindo indicadores/risco/entregas/evolução
-          // de uma vez — mais simples e sempre correto do que tentar mesclar.
-          onUpdate={() => {}}
-        />
-      )}
+      {/* Middle Row: Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(48%, 1fr))', gap: 24, marginBottom: 24 }}>
+        <div style={{ ...blockStyle, minHeight: 380, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={blockTitle}>Evolução Comercial</h3>
+          <div style={{ flex: 1, minHeight: 0 }}><ResponsiveContainer width="100%" height="100%">
+            <LineChart data={evData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{fontSize: 10, fill: '#6b7280'}} tickMargin={10} axisLine={false} tickLine={false} />
+              <YAxis tick={{fontSize: 10, fill: '#6b7280'}} tickMargin={10} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="#0d9488" strokeWidth={3} dot={{r: 4}} />
+            </LineChart>
+          </ResponsiveContainer></div>
+        </div>
+        <div style={{ ...blockStyle, minHeight: 380, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={blockTitle}>Volume por Período</h3>
+          <div style={{ flex: 1, minHeight: 0 }}><ResponsiveContainer width="100%" height="100%">
+            <BarChart data={evData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{fontSize: 10, fill: '#6b7280'}} tickMargin={10} axisLine={false} tickLine={false} />
+              <YAxis tick={{fontSize: 10, fill: '#6b7280'}} tickMargin={10} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer></div>
+        </div>
+        <div style={{ ...blockStyle, minHeight: 380, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={blockTitle}>Funil de Pedidos</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 20 }}>
+             {funnelData.map((d, i) => (
+               <div key={d.name} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
+                 <div style={{ width: 100, fontWeight: 500, color: '#555' }}>{d.name}</div>
+                 <div style={{ flex: 1, backgroundColor: '#f3f4f6', height: 16, borderRadius: 8, overflow: 'hidden' }}>
+                   <div style={{ width: `${(d.value / 60) * 100}%`, height: '100%', backgroundColor: COLORS[i % COLORS.length] }} />
+                 </div>
+                 <div style={{ width: 40, textAlign: 'right', fontWeight: 600 }}>{d.value}</div>
+               </div>
+             ))}
+          </div>
+        </div>
+        <div style={{ ...blockStyle, minHeight: 380, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={blockTitle}>Metas Comerciais</h3>
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsPie>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} fill="#8884d8" paddingAngle={5} dataKey="value">
+                  {pieData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </RechartsPie>
+            </ResponsiveContainer>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#111' }}>78%</div>
+              <div style={{ fontSize: 13, color: '#6b7280' }}>da meta</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {showOrderModal && (
-        <NewOrderModal
-          onClose={() => setShowOrderModal(false)}
-          onCreate={() => { setShowOrderModal(false); toast.success('Pedido criado'); refetch() }}
-        />
-      )}
+      {/* Bottom Row: Lists */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        
+        {/* Entregas */}
+        <div style={{ ...blockStyle, gridColumn: 'span 1' }}>
+          <h3 style={blockTitle}>Próximas Entregas</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ color: '#6b7280', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
+                <th style={{ paddingBottom: 8, fontWeight: 500 }}>Cliente</th>
+                <th style={{ paddingBottom: 8, fontWeight: 500 }}>Data</th>
+                <th style={{ paddingBottom: 8, fontWeight: 500 }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.upcomingDeliveries?.items.slice(0, 5).map(o => (
+                <tr key={o.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '12px 0', fontWeight: 600, color: '#111' }}>{o.client?.name}</td>
+                  <td style={{ padding: '12px 0', color: '#6b7280' }}>{formatDate(o.desiredDeliveryDate)}</td>
+                  <td style={{ padding: '12px 0' }}>
+                    <span style={{ backgroundColor: '#dbeafe', color: '#2563eb', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600 }}>Programado</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      {showReminderModal && (
-        <NewReminderModal
-          onClose={() => setShowReminderModal(false)}
-          onCreate={() => { setShowReminderModal(false); toast.success('Atividade criada'); refetch() }}
-        />
-      )}
+        {/* Risco */}
+        <div style={{ ...blockStyle, gridColumn: 'span 1' }}>
+          <h3 style={blockTitle}>Pedidos em Risco</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {data?.riskyOrders?.items.slice(0, 4).map(alert => (
+              <div key={alert.order.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: 12, borderBottom: '1px solid #f3f4f6' }}>
+                <AlertTriangle size={16} color="#dc2626" style={{ marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{alert.order.client?.name}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>Entrega Atrasada</div>
+                </div>
+                <span style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600 }}>Atraso</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Agenda */}
+        <div style={{ ...blockStyle, gridColumn: 'span 1' }}>
+          <h3 style={blockTitle}>Agenda de Hoje</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+               <div style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', width: 40 }}>09:00</div>
+               <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Phone size={14} color="#6b7280" /></div>
+               <div>
+                 <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>Ligação</div>
+                 <div style={{ fontSize: 11, color: '#6b7280' }}>Aquamar Camarões</div>
+               </div>
+             </div>
+             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+               <div style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', width: 40 }}>10:30</div>
+               <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={14} color="#6b7280" /></div>
+               <div>
+                 <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>Reunião</div>
+                 <div style={{ fontSize: 11, color: '#6b7280' }}>Mar & Sol</div>
+               </div>
+             </div>
+             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+               <div style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', width: 40 }}>14:00</div>
+               <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle size={14} color="#6b7280" /></div>
+               <div>
+                 <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>Follow-up</div>
+                 <div style={{ fontSize: 11, color: '#6b7280' }}>Costa Azul</div>
+               </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Integration */}
+        <div style={{ ...blockStyle, gridColumn: 'span 1' }}>
+          <h3 style={blockTitle}>Status da Integração</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 40, height: 40, backgroundColor: '#f3f4f6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw size={20} color="#2563eb" /></div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>AquaFort</div>
+            <div style={{ marginLeft: 'auto', backgroundColor: '#d1fae5', color: '#059669', padding: '4px 10px', borderRadius: 16, fontSize: 11, fontWeight: 600 }}>Sincronizado</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Última sincronização</span><span style={{ fontWeight: 600 }}>Há 3 minutos</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Pedidos sincronizados</span><span style={{ fontWeight: 600 }}>35</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Lotes sincronizados</span><span style={{ fontWeight: 600 }}>42</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Falhas</span><span style={{ fontWeight: 600, color: '#059669' }}>0</span></div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   )
 }

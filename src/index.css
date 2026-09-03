@@ -1,47 +1,75 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
-/* ── Paleta melon e tipografia ── */
+/* ── LarviFort Design System — Blue Corporate ── */
 @theme {
-  --color-melon-50:  #FEFEF0;
-  --color-melon-100: #FDFDC4;
-  --color-melon-200: #FBFB88;
-  --color-melon-300: #F5F560;
-  --color-melon-400: #F5E642;
-  --color-melon-500: #D4D418;
-  --color-melon-600: #AAAA12;
-  --color-melon-700: #7E7E0D;
-  --color-melon-800: #565608;
-  --color-melon-900: #3A3A05;
-
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
-/* ── Variáveis do shadcn/ui (tema claro) ── */
+/* ── Light Theme ── */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 32% 95%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 214 32% 95%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 214 32% 95%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 90%;
+  --input: 214 32% 90%;
+  --ring: 217 91% 60%;
+  --radius: 0.375rem;
 
-  /* primary = melon-400 (#F5E642) em HSL */
-  --primary: 56 89% 61%;
-  --primary-foreground: 240 10% 3.9%;
+  --sidebar-bg: 222 47% 11%;
+  --sidebar-hover: 217 33% 17%;
+  --sidebar-active: 217 91% 60%;
+  --sidebar-text: 215 25% 70%;
+  --sidebar-text-active: 0 0% 100%;
 
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 56 89% 61%;
-  --radius: 0.5rem;
+  --status-budget: 215 16% 47%;
+  --status-negotiation: 217 91% 60%;
+  --status-approved: 142 71% 45%;
+  --status-production: 25 95% 53%;
+  --status-ready: 262 83% 58%;
+  --status-delivered: 160 84% 39%;
+}
+
+/* ── Dark Theme ── */
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 214 40% 96%;
+  --card: 217 33% 17%;
+  --card-foreground: 214 40% 96%;
+  --popover: 217 33% 17%;
+  --popover-foreground: 214 40% 96%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 214 40% 96%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 214 40% 96%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 33% 25%;
+  --input: 217 33% 25%;
+  --ring: 217 91% 60%;
+
+  --sidebar-bg: 222 50% 6%;
+  --sidebar-hover: 217 33% 12%;
+  --sidebar-active: 217 91% 60%;
+  --sidebar-text: 215 20% 55%;
+  --sidebar-text-active: 0 0% 100%;
 }
 
 * {
@@ -56,4 +84,29 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* ── Dark mode class toggle ── */
+.dark body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }

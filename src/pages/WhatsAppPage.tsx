@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { QrCode, RefreshCw, Send, Wifi, WifiOff } from 'lucide-react'
-import AppSidebar from '@/components/layout/AppSidebar'
+
 import { whatsappApi, type WhatsAppQr, type WhatsAppStatus } from '@/lib/api'
 
 const emptyCompanies: [] = []
@@ -100,15 +100,7 @@ export default function WhatsAppPage() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', backgroundColor: '#f5f5f2', color: '#171717' }}>
-      <AppSidebar
-        companies={emptyCompanies}
-        sidebarView="all-clients"
-        selectedCompanyId={null}
-        onSelectCompany={() => {}}
-        onViewAllClients={() => {}}
-        onViewReminders={() => {}}
-        onAddCompany={() => {}}
-      />
+      
 
       <main style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: 28 }}>

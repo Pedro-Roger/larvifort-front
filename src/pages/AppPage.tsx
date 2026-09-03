@@ -180,15 +180,7 @@ export default function AppPage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <AppSidebar
-        companies={companies}
-        sidebarView={sidebarView}
-        selectedCompanyId={selectedCompanyId}
-        onSelectCompany={selectCompany}
-        onViewAllClients={viewAllClients}
-        onViewReminders={viewReminders}
-        onAddCompany={() => setShowCompanyModal(true)}
-      />
+      
 
       <ClientColumn
         sidebarView={sidebarView}

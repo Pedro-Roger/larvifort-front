@@ -1,23 +1,30 @@
 const BASE_URL = import.meta.env.VITE_API_URL as string
 
+function getToken(): string | null {
+  try {
+    return localStorage.getItem('access_token')
+  } catch {
+    return null
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    credentials: 'include',
   })
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    // Achado corrigido nesta sessão: todas as rotas do backend
-    // (routes/*.ts) respondem erro como `{ error: "..." }`, nunca
-    // `{ message: "..." }` — a mensagem real nunca chegava até aqui, sempre
-    // caía no fallback genérico "HTTP <status>". Aceita os dois formatos.
     const parsed = error as { error?: string; message?: string }
     throw new Error(parsed.error ?? parsed.message ?? `HTTP ${response.status}`)
   }

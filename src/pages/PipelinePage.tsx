@@ -238,53 +238,34 @@ export default function PipelinePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#fafafa' }}>
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 20px', borderBottom: '1px solid rgba(0,0,0,0.07)',
-        backgroundColor: '#fff', flexShrink: 0, gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/')} title="Voltar ao CRM" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
-            <ArrowLeft size={18} color="#666" />
-          </button>
-          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111', margin: 0 }}>Pedidos</h1>
-          {board && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, color: '#888', backgroundColor: '#f3f4f6',
-              borderRadius: 10, padding: '3px 9px',
-            }}>
-              {board.pipeline.name}
-            </span>
-          )}
-          {role === 'comercial' && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, color: '#888', backgroundColor: '#f3f4f6',
-              borderRadius: 10, padding: '3px 9px',
-            }}>
-              Minha carteira
-            </span>
-          )}
-        </div>
-
+      
+      {/* Topbar matching screenshot */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid rgba(0,0,0,0.05)', backgroundColor: '#fff' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          Sales Pipeline <span style={{ cursor: 'pointer', color: '#9ca3af', display: 'flex' }}><ArrowRight size={16} /></span>
+        </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button style={iconBtnStyle(view === 'board')} title="Funil (kanban)" onClick={() => setView('board')}>
-            <LayoutGrid size={15} />
-          </button>
-          <button style={iconBtnStyle(view === 'list')} title="Lista operacional" onClick={() => setView('list')}>
-            <ListIcon size={15} />
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>Sales</span>
+            <span style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>Close date: All Time</span>
+            <span style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>All Leads</span>
+            <span style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>All Users</span>
+          </div>
+          <div style={{ width: 1, height: 20, backgroundColor: '#e5e7eb', margin: '0 8px' }} />
+          <button style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151' }}>Actual Value <span style={{ backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: 4, marginLeft: 4, fontSize: 11 }}>ANNUALIZED</span></button>
+          <button style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 16, fontSize: 13, fontWeight: 500, backgroundColor: '#fff', color: '#374151' }}>Options</button>
           <button
             onClick={() => setShowNewModal(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4,
-              padding: '8px 14px', fontSize: 13, fontWeight: 600, color: '#111',
-              backgroundColor: '#F2E600', border: 'none', borderRadius: 7, cursor: 'pointer',
+              padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#fff',
+              backgroundColor: '#10b981', border: 'none', borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
             }}
           >
-            <Plus size={14} /> Novo pedido
+            <Plus size={14} /> Novo
           </button>
         </div>
       </div>
+
 
       {/* Body */}
       <div style={{ flex: 1, overflow: 'hidden' }}>

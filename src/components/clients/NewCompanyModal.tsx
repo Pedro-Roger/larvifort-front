@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Search } from 'lucide-react'
 import { api } from '@/lib/api'
 import { COMPANY_FARM_SIZES, type Company } from '@/types'
 import { COMPANY_FARM_SIZE_LABELS } from '@/lib/domainLabels'
@@ -12,14 +12,50 @@ interface Props {
 export default function NewCompanyModal({ onClose, onCreate }: Props) {
   const [form, setForm] = useState({
     name: '', cnpj: '', email: '', phone: '', notes: '',
-    farm_location: '', farm_size: '',
+    farm_location: '', farm_size: '', commercial_group_id: '', parent_company_id: '',
   })
   const [saving, setSaving] = useState(false)
+  const [lookingUp, setLookingUp] = useState(false)
   const [error, setError]   = useState<string | null>(null)
+  const [isCnpjVerified, setIsCnpjVerified] = useState(false)
+
+  const [groups, setGroups] = useState<any[]>([])
+  const [companies, setCompanies] = useState<any[]>([])
+
+  
+  useEffect(() => {
+    api.get<any[]>('/api/v1/commercial-groups').then(res => setGroups(res)).catch(() => {})
+    api.get<any[]>('/api/v1/companies').then(res => setCompanies(res)).catch(() => {})
+  }, [])
+
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
     setError(null)
+  }
+
+  async function handleCnpjLookup() {
+    if (!form.cnpj.trim()) { setError('Informe o CNPJ para buscar'); return }
+    setLookingUp(true)
+    setError(null)
+    try {
+      const data = await api.post<any>('/api/v1/companies/lookup-cnpj', { cnpj: form.cnpj.trim() })
+      setForm(prev => ({
+        ...prev,
+        name: data.name || prev.name,
+        email: data.email || prev.email,
+        phone: data.phone || prev.phone,
+      }))
+      setIsCnpjVerified(true)
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setError('Este CNPJ já está cadastrado.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Erro ao buscar CNPJ')
+      }
+    } finally {
+      setLookingUp(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,6 +71,8 @@ export default function NewCompanyModal({ onClose, onCreate }: Props) {
         notes:         form.notes.trim() || null,
         farm_location: form.farm_location.trim() || null,
         farm_size:     form.farm_size || null,
+        commercialGroupId: form.commercial_group_id || null,
+        parentCompanyId: form.parent_company_id || null,
       })
       onCreate(company)
       onClose()
@@ -66,16 +104,30 @@ export default function NewCompanyModal({ onClose, onCreate }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>CNPJ (Busca Automática)</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input style={inputStyle} type="text" value={form.cnpj} onChange={(e) => { set('cnpj', e.target.value); setIsCnpjVerified(false); }} placeholder="00.000.000/0000-00" />
+              <button 
+                type="button" 
+                onClick={handleCnpjLookup} 
+                disabled={lookingUp}
+                style={{ padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 7, cursor: lookingUp ? 'not-allowed' : 'pointer' }}
+              >
+                {lookingUp ? '...' : <Search size={16} />}
+              </button>
+            </div>
+            {isCnpjVerified && <span style={{ fontSize: 11, color: '#10b981', marginTop: 4, display: 'block' }}>Dados consultados com sucesso.</span>}
+          </div>
+
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>
-              Nome <span style={{ color: '#ef4444' }}>*</span>
+              Nome / Razão Social <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <input style={inputStyle} type="text" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Nome da empresa" autoFocus />
+            <input style={inputStyle} type="text" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Nome da empresa" />
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>CNPJ</label>
-            <input style={inputStyle} type="text" value={form.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" />
-          </div>
+          
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Email</label>
             <input style={inputStyle} type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="contato@empresa.com" />
@@ -98,6 +150,34 @@ export default function NewCompanyModal({ onClose, onCreate }: Props) {
               <option value="">Não informado</option>
               {COMPANY_FARM_SIZES.map((s) => (
                 <option key={s} value={s}>{COMPANY_FARM_SIZE_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+
+          
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Grupo Comercial (Opcional)</label>
+            <select
+              value={form.commercial_group_id}
+              onChange={(e) => set('commercial_group_id', e.target.value)}
+              style={{ ...inputStyle, appearance: 'auto' }}
+            >
+              <option value="">Nenhum grupo</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Empresa Matriz (Opcional)</label>
+            <select
+              value={form.parent_company_id}
+              onChange={(e) => set('parent_company_id', e.target.value)}
+              style={{ ...inputStyle, appearance: 'auto' }}
+            >
+              <option value="">Nenhuma (Esta é a matriz)</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
